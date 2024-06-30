@@ -3,6 +3,7 @@ package calculator
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 )
 
@@ -44,7 +45,7 @@ func (c *Calculator) Run() {
 				fmt.Println(value)
 			}
 		default:
-			fmt.Println("Unknown commandType")
+			fmt.Println("Unknown command")
 		}
 
 		if err != nil && !errors.Is(err, errNoExpression) {
@@ -98,8 +99,7 @@ func (c *Calculator) calc(input string) (int, error) {
 	var stack = make([]int, 0, len(tokens)/2)
 
 	for _, token := range tokens {
-		switch token {
-		case "+", "-", "*", "/":
+		if len(token) == 1 && slices.Contains(supportedOperators, rune(token[0])) {
 			if len(stack) < 2 {
 				return 0, errInvalidExpression
 			}
@@ -107,14 +107,12 @@ func (c *Calculator) calc(input string) (int, error) {
 			a, b := stack[l-2], stack[l-1]
 			stack = stack[:l-2]
 			stack = append(stack, doAction(a, b, token))
-		default:
-			if num, err = strconv.Atoi(token); err == nil {
-				stack = append(stack, num)
-			} else if num, err = c.get(token); err == nil {
-				stack = append(stack, num)
-			} else {
-				return 0, err
-			}
+		} else if num, err = strconv.Atoi(token); err == nil {
+			stack = append(stack, num)
+		} else if num, err = c.get(token); err == nil {
+			stack = append(stack, num)
+		} else {
+			return 0, err
 		}
 	}
 
@@ -127,6 +125,12 @@ func (c *Calculator) calc(input string) (int, error) {
 
 func doAction(a, b int, action string) int {
 	switch action {
+	case "^":
+		result := a
+		for i := 1; i < b; i++ {
+			result *= a
+		}
+		return result
 	case "+":
 		return a + b
 	case "-":

@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-var supportedOperators = []rune{'+', '-', '*', '/'}
+var supportedOperators = []rune{'+', '-', '*', '/', '^'}
 
 func buildPostfix(input string) ([]string, error) {
 	var result []string
@@ -84,6 +84,8 @@ func fetchLowerOperators(operators *[]rune, r rune) []string {
 
 func isPriorityHigher(r rune, op rune) bool {
 	switch r {
+	case '^':
+		return true
 	case '*', '/':
 		return op == '+' || op == '-'
 	default:
