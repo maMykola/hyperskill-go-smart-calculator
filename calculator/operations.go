@@ -17,3 +17,12 @@ func (op *operationType) Update(action operationType) {
 		*op = action
 	}
 }
+
+func isOperator(op string) bool {
+	switch op {
+	case "+", "-", "*", "/", "(", ")":
+		return true
+	default:
+		return false
+	}
+}

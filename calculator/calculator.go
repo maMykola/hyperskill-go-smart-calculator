@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"unicode"
-	"unicode/utf8"
 )
 
 type Calculator struct {
@@ -13,9 +11,11 @@ type Calculator struct {
 }
 
 var (
+	errNoExpression      = errors.New("No expression")
 	errInvalidIdentifier = errors.New("Invalid identifier")
-	errUnknownVariable   = errors.New("Unknown variable")
+	errInvalidExpression = errors.New("Invalid expression")
 	errInvalidAssignment = errors.New("Invalid assignment")
+	errUnknownVariable   = errors.New("Unknown variable")
 )
 
 func (c *Calculator) Run() {
@@ -85,7 +85,7 @@ func (c *Calculator) assign(name string, input string) error {
 }
 
 func (c *Calculator) calc(input string) (int, error) {
-	tokens, err := getTokens(input)
+	tokens, err := buildPostfix(input)
 	if err != nil {
 		return 0, err
 	}
@@ -94,50 +94,48 @@ func (c *Calculator) calc(input string) (int, error) {
 		return 0, errNoExpression
 	}
 
-	var result int
-	var op = PlusOperation
+	var num int
+	var stack = make([]int, 0, len(tokens)/2)
 
 	for _, token := range tokens {
 		switch token {
-		case "+", "-":
-			op.Update(operationType(token[0]))
-		default:
-			if op == NoOperation {
+		case "+", "-", "*", "/":
+			if len(stack) < 2 {
 				return 0, errInvalidExpression
 			}
-
-			var num int
-			var err error
-
-			if r, _ := utf8.DecodeRuneInString(token); unicode.IsLetter(r) {
-				num, err = c.get(token)
-			} else if num, err = strconv.Atoi(token); err != nil {
-				err = errInvalidExpression
-			}
-
-			if err != nil {
+			l := len(stack)
+			a, b := stack[l-2], stack[l-1]
+			stack = stack[:l-2]
+			stack = append(stack, doAction(a, b, token))
+		default:
+			if num, err = strconv.Atoi(token); err == nil {
+				stack = append(stack, num)
+			} else if num, err = c.get(token); err == nil {
+				stack = append(stack, num)
+			} else {
 				return 0, err
 			}
-
-			result = doOperation(op, result, num)
-			op = NoOperation
 		}
 	}
 
-	if op != NoOperation {
+	if len(stack) != 1 {
 		return 0, errInvalidExpression
 	}
 
-	return result, nil
+	return stack[0], nil
 }
 
-func doOperation(op operationType, a, b int) int {
-	switch op {
-	case PlusOperation:
+func doAction(a, b int, action string) int {
+	switch action {
+	case "+":
 		return a + b
-	case MinusOperation:
+	case "-":
 		return a - b
+	case "*":
+		return a * b
+	case "/":
+		return a / b
 	default:
-		panic("invalid operation")
+		panic("Unknown action")
 	}
 }
