@@ -14,7 +14,9 @@ func buildPostfix(input string) ([]string, error) {
 	var operators []rune
 	var token strings.Builder
 	var r rune
+	var hasNumber bool
 
+	input = simplifyOperations(input)
 	for weight, start := 0, 0; start < len(input); start += weight {
 		r, weight = utf8.DecodeRuneInString(input[start:])
 		if unicode.IsDigit(r) || unicode.IsLetter(r) {
@@ -23,16 +25,19 @@ func buildPostfix(input string) ([]string, error) {
 		}
 
 		if token.Len() > 0 {
+			hasNumber = true
 			result = append(result, token.String())
 			token.Reset()
-		}
-
-		if unicode.IsSpace(r) {
-			continue
+		} else {
+			hasNumber = false
 		}
 
 		if slices.Contains(supportedOperators, r) {
-			result = append(result, fetchLowerOperators(&operators, r)...)
+			ops := fetchLowerOperators(&operators, r)
+			if len(ops) == 0 && (r == '-' || r == '+') && !hasNumber {
+				result = append(result, "0")
+			}
+			result = append(result, ops...)
 			operators = append(operators, r)
 		} else if r == '(' {
 			operators = append(operators, r)
@@ -108,4 +113,23 @@ func fetchBeforeParenthesis(operators *[]rune) ([]string, error) {
 	}
 
 	return nil, errInvalidExpression
+}
+
+// simplifyOperations will remove all spaces and simplify multiple + and - operations
+func simplifyOperations(input string) string {
+	simplified := input
+
+	for {
+		simplified = strings.ReplaceAll(input, " ", "")
+		simplified = strings.ReplaceAll(simplified, "--", "+")
+		simplified = strings.ReplaceAll(simplified, "++", "+")
+		simplified = strings.ReplaceAll(simplified, "+-", "-")
+		simplified = strings.ReplaceAll(simplified, "-+", "-")
+
+		if simplified == input {
+			return input
+		}
+
+		input = simplified
+	}
 }
